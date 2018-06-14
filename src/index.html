@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Client</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+</head>
+
+<body>
+  <div class="container">
+    <div id="app1">
+      <div id="information">
+        <h1>速度</h1>
+        <h1>{{speed}} km/h</h1>
+
+      </div>
+      <button class="btn btn-success" v-on:click="driving">進行</button>
+      <button class="btn btn-danger" v-on:click="stop">停止</button>
+    </div>
+
+
+    <div id="app2">
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>速度</th>
+            <th>前方との距離</th>
+            <th>左壁との距離(0m地点)</th>
+            <th>左壁との距離(30m地点)</th>
+            <th>左壁との距離(60m地点)</th>
+            <th>左壁との距離(90m地点)</th>
+            <th>右壁との距離(0m地点)</th>
+            <th>右壁との距離(30m地点)</th>
+            <th>右壁との距離(60m地点)</th>
+            <th>右壁との距離(90m地点)</th>
+          </tr>
+        </thead>
+        <tr>
+          <td>{{speed}}</td>
+          <td>{{distanceFront}}</td>
+          <td>{{left_0m}}</td>
+          <td>{{left_30m}}</td>
+          <td>{{left_60m}}</td>
+          <td>{{left_90m}}</td>
+          <td>{{right_0m}}</td>
+          <td>{{right_30m}}</td>
+          <td>{{right_60m}}</td>
+          <td>{{right_90m}}</td>
+        </tr>
+
+
+      </table>
+
+
+    </div>
+  </div>
+
+
+  <div id="status"></div>
+  </div>
+
+  <script>
+    var serverIP = "192.168.100.201"; // Chamomile のIPアドレス
+    var serverPort = "8089"; // Chamomile の待受ポート番号
+    var endpoint = "/endpoint"; // Websocketのエンドポイント指定
+    var url = 'http://' + serverIP + ':' + serverPort + endpoint;
+    var sock = new SockJS(url); // Chamomileのエンドポイントに接続
+    var stompClient = Stomp.over(sock); // stomp(WebSocket)に接続
+
+
+
+    // Vue.jsを使って管理
+    var app1 = new Vue({
+      el: '#app1',
+      data: {
+        speed: 0,
+        status: null,
+        message: {
+          accel: 100,
+          steer: 100
+        }
+      },
+      methods: {
+        stop: function() {
+          this.status = "STOP";
+          console.log("StatusChange:" + this.status);
+          this.message.accel = 10;
+          this.message.steer = 100;
+          // Actuator に制御情報を送信
+          stompClient.send('/chamomile/actuator', {}, JSON.stringify(this.message));
+        },
+        driving: function() {
+          this.status = "DRIVING";
+          console.log("StatusChange:" + this.status);
+          this.message.accel = 150;
+          this.message.steer = 100;
+          // Actuator に制御情報を送信
+          stompClient.send('/chamomile/actuator', {}, JSON.stringify(this.message));
+        }
+      },
+      watch: {
+        speed: function() {
+
+          switch (this.status) {
+            case "STOP":
+              console.log("STOP");
+              if (this.speed > 3) {
+                this.message.accel = 50;
+                this.message.steer = 100;
+              } else if (this.speed == 0) {
+                this.message.accel = 100;
+                this.message.steer = 100;
+              }
+              break;
+            case "DRIVING":
+              console.log("DRIVING");
+              break;
+            default:
+              break;
+          }
+
+          // Actuator に制御情報を送信
+          stompClient.send('/chamomile/actuator', {}, JSON.stringify(this.message));
+        }
+
+      }
+    });
+
+    var app2 = new Vue({
+
+      el: '#app2',
+      data: {
+        speed: 0,
+        distanceFront: 0,
+        left_0m: 0,
+        right_0m: 0,
+        left_30m: 0,
+        right_30m: 0,
+        left_60m: 0,
+        right_60m: 0,
+        left_90m: 0,
+        right_90m: 0
+
+      }
+
+
+    });
+
+    // 無名関数の使用
+    $(function() {
+      stompClient.debug = null;
+      stompClient.connect({}, function(frame) {
+        // 車両情報チャンネルをサブスクライブ
+        stompClient.subscribe('/topic/chamomile', function(message) {
+          var data = JSON.parse(message.body);
+          // console.log(data);
+          // アクチュエータの情報を取得
+          if (data.name == "Actuator") {
+            app1.speed = parseInt(data.signals[0].integerValue, 10);
+
+            app2.speed = parseInt(data.signals[0].integerValue, 10);
+            var high = parseInt(data.signals[1].integerValue, 10);
+            var low = parseInt(data.signals[2].integerValue, 10);
+            app2.distanceFront = (high << 8) | low;
+
+          } else if (data.name == "Sensor") {
+            app2.left_0m = parseInt(data.signals[0].integerValue, 10);
+            app2.left_30m = parseInt(data.signals[2].integerValue, 10);
+            app2.left_60m = parseInt(data.signals[4].integerValue, 10);
+            app2.left_90m = parseInt(data.signals[6].integerValue, 10);
+            app2.right_0m = parseInt(data.signals[1].integerValue, 10);
+            app2.right_30m = parseInt(data.signals[3].integerValue, 10);
+            app2.right_60m = parseInt(data.signals[5].integerValue, 10);
+            app2.right_90m = parseInt(data.signals[7].integerValue, 10);
+          }
+
+
+        });
+      })
+    });
+  </script>
+
+
+</body>
+
+</html>
