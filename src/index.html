@@ -166,9 +166,9 @@
             app1.speed = parseInt(data.signals[0].integerValue, 10);
 
             app2.speed = parseInt(data.signals[0].integerValue, 10);
-            var high = parseInt(data.signals[1].integerValue, 10);
-            var low = parseInt(data.signals[2].integerValue, 10);
-            app2.distanceFront = (high << 8) | low;
+
+
+            app2.distanceFront = parseInt(data.signals[1].integerValue, 10);
 
           } else if (data.name == "Sensor") {
             app2.left_0m = parseInt(data.signals[0].integerValue, 10);
