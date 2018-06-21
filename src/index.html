@@ -160,7 +160,7 @@
         // 車両情報チャンネルをサブスクライブ
         stompClient.subscribe('/topic/chamomile', function(message) {
           var data = JSON.parse(message.body);
-          // console.log(data);
+          console.log(data);
           // アクチュエータの情報を取得
           if (data.name == "Actuator") {
             app1.speed = parseInt(data.signals[0].integerValue, 10);
