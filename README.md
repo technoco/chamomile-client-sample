@@ -101,7 +101,7 @@ stompClient.send('/chamomile/actuator', {}, JSON.stringify(message))
 ## トラブルシューティング
 ### 制御情報が上手く伝わっているのかわからない
 　WiresharkやTcpdumpでパケット情報を見てもいいですが、せっかくなのでChamomoileを使って制御情報が流れているのか確認してみましょう。
-有線で直接スイッチに繋がっている場合は、Webブラウザを起動して「http://192.168.100.201:8089」にアクセスして下さい。無線の場合はRaspberryPiの「http://無線カードに割り振れられたIP:8089」でアクセスします。
+有線で直接スイッチに繋がっている場合は、Webブラウザを起動して「[http://192.168.100.201:8089](http://192.168.100.201:8089)」にアクセスして下さい。無線の場合はRaspberryPiの「[http://無線カードに割り振れられたIP:8089](http://無線カードに割り振れられたIP:8089)」でアクセスします。
 ![Chamomileサーバー](img/chamomileServer.png)
 
 センサ情報が流れているとトラフィックが流れる様子がNetworkTraffic Chartに流れ始めます。
