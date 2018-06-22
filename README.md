@@ -5,16 +5,6 @@
 車載で一般的に使われるネットワークプロトコルであるCANを取得して表示したり、複雑なコンフィグレーションなしでもCANのフレームを送受信するなど、開発のサポートのために有志によって作られたツールです。
 最近では、デモの説明を補助するために視覚的な表示を取り入れるなどの改善を行っています。
 
-### Chamomileの起動方法
-配布されたRaspberryPiを起動すると自動で起動されるようになっていますが、起動しない場合は再起動を行うかSSHして立ち上げて下さい。
-```bash
-/* 有線で接続 */
-ssh pi@192.168.100.201 /* パスワードは別途お知らせ */
-sudo su /* rootユーザへ */
-cd ~/chamomile /* Chamomileのルートディレクトリ */
-bash stop.sh /* Chamomileを停止 */
-bash start-production.sh /* Chamomileを起動。1~2分かかります */
-```
 
 ## Chamomile-APIとは
 車載の事を知らない人でも車内の情報を簡単に活用できるようにAPIにしました。
@@ -24,7 +14,7 @@ Websocketで通信することでリアルタイムに車両の情報を取得�
 ### Websocket
 双方向通信を低コストで実現するための仕組み。通常のHTTP(S)では通信のたびにヘッダを付与してRequest/Responseが発生しますが、Websocketでは最初に一度コネクションを確立すると都度Request/Responseのやり取りをしなくて済み、リアルタイムでデータの送受信ができます。
 ### STOMP
-Simple(or Streaming) Text Orientated Messaging Protocolの略で、軽量なメッセージングプロトコルです。Websocket上で動くためSTOMP over Websocketであり、シンプルなメッセージングのために今回採用しています。
+Simple(or Streaming) Text Orientated Messaging Protocolの略で、軽量なメッセージングプロトコルです。Websocket上で動くためSTOMP over Websocketであり、シンプルなメッセージング実現ために採用しています。
 
 ### 取得できる情報
 以下の項目を取得することができます。
@@ -50,12 +40,16 @@ Simple(or Streaming) Text Orientated Messaging Protocolの略で、軽量なメ�
 大まかな処理はサンプル(src/index.html)にコメント付きで記載していますので確認して下さい。
 必要なデータの取得や制御方法については重要な部分になるため、以下に説明します。
 
+
 ## 取得について
 　サーバ側でエンドポイント「/topic/chamomile」に車両の取得情報を配信しています。エンドポイントとは、チャットルームの部屋番号のようなものだと思って下さい。受け取った文字列のメッセージをJSON.parseすることでJSON形式に変換して扱いやすくします。
+サーバサイドはsockjsを利用することを前提に実装してあります。
+各言語からの接続方法は公式サイトを参考にしてください。
+[https://github.com/sockjs/sockjs-client](https://github.com/sockjs/sockjs-client)
 
 ```javascript
 /* 一部抜粋 */
-var url = "http://hogehoge"
+var url = "http://<IP address>:8089/endpoint"
 var sock = new SockJS(url); // Chamomileのエンドポイントに接続
 var stompClient = Stomp.over(sock); // stomp(WebSocket)に接続
 stompClient.subscribe('/topic/chamomile', function(message) { // topic/chamomileを購読
@@ -66,6 +60,31 @@ stompClient.subscribe('/topic/chamomile', function(message) { // topic/chamomile
 
 
 ![](/img/devtools.png)
+
+
+## 取得できるデータについて
+
+データは車載の通信で一般的に使われるCANという通信方式のデータ構造を模したものです。
+CANで送られるメッセージは各データごとにシグナルという単位で送信されます。
+データのシグナルの中身を取得してください。
+
+
+|項目名| 名前|概要|
+|:---|:---|:---|
+|canid| CANID|データの種別を判断するユニークなID。アクチュエータは0x0110、センサーは0x0101。|
+|name |メッセージ名|データ種別の名前。アクチュエータは"Actuator"、センサーは"Sensor"|
+|timestamp|タイムスタンプ|データが送信された時間。|
+|signals|シグナル|データシグナルの配列。|
+
+
+シグナルの配列は以下のデータ形式です。
+
+|項目名| 名前|概要|
+|:---|:---|:---|
+|name| シグナル名|シグナルの名前。この名前でどのデータ化を判断してください。|
+|integerValue |シグナルのデータ（10進数）|10進数で取得できる数値|
+|readableString|シグナルのデータ（文字列）|文字列で取得できる場合は文字列が入力される。それ以外は10進数の数値。|
+|rawValue|シグナルのデータ（16進数）|16進数で取得できる生データ|
 
 
 ## 制御について
@@ -82,7 +101,21 @@ stompClient.send('/chamomile/actuator', {}, JSON.stringify(message))
 ## トラブルシューティング
 ### 制御情報が上手く伝わっているのかわからない
 　WiresharkやTcpdumpでパケット情報を見てもいいですが、せっかくなのでChamomoileを使って制御情報が流れているのか確認してみましょう。
-有線の場合は、Webブラウザを起動して「192.168.100.201:8089」にアクセスして下さい。無線の場合はRaspberryPiの「無線カードに割り振れられたIP:8089」でアクセスします。
+有線で直接スイッチに繋がっている場合は、Webブラウザを起動して「http://192.168.100.201:8089」にアクセスして下さい。無線の場合はRaspberryPiの「http://無線カードに割り振れられたIP:8089」でアクセスします。
 ![Chamomileサーバー](img/chamomileServer.png)
 
-!!! あくまで仲介役のため末端で確認すべき場合は該当ノードでDumpした方が問題の切り分けが早いかもしれません。
+センサ情報が流れているとトラフィックが流れる様子がNetworkTraffic Chartに流れ始めます。
+操作パケットが流れるとActuatorNetworkのパケット数が増えます。
+フィルタリングを活用して正常にパケットが流れているかどうかを確認してください。
+
+
+### Chamomileの起動方法
+配布されたRaspberryPiを起動すると自動で起動されるようになっていますが、起動しない場合は再起動を行うかSSHして立ち上げて下さい。
+```bash
+/* 有線で接続 */
+ssh pi@192.168.100.201 /* パスワードは別途お知らせ */
+sudo su /* rootユーザへ */
+cd ~/chamomile /* Chamomileのルートディレクトリ */
+bash stop.sh /* Chamomileを停止 */
+bash start-production.sh /* Chamomileを起動。1~2分かかります */
+```
