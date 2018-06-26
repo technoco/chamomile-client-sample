@@ -69,6 +69,7 @@ stompClient.subscribe('/topic/chamomile', function(message) { // topic/chamomile
 データは車載の通信で一般的に使われるCANという通信方式のデータ構造を模したものです。
 CANで送られるメッセージは各データごとにシグナルという単位で送信されます。
 データのシグナルの中身を取得してください。
+送信間隔は100msです。
 
 
 |項目名| 名前|概要|
@@ -98,7 +99,66 @@ message.steer = 100; /* steer: ハンドル制御 */
 stompClient.send('/chamomile/actuator', {}, JSON.stringify(message))
 ```
 
+## REST API
+　REST経由でのAPIアクセスも用意しています。リアルタイム性が必要のない場合はこちらのAPIをご利用ください。
 
+REST APIエンドポイント http://192.168.100.201:8089/
+
+|API| METHOD |概要|
+|:---|:---|:---|
+|/api/car/actuator| GET |アクチュエータ情報の取得|
+|/api/car/sensor |GET|センサ情報の取得|
+|/api/car/actuator|POST|アクチュエータの操作|
+
+
+### GETリクエストの例
+
+```javascript
+
+$ curl http://192.168.100.201:8089/api/car/actuator | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   324    0   324    0     0  19058      0 --:--:-- --:--:-- --:--:-- 20250
+{
+  "canid": "0100",
+  "typeName": "Actuator",
+  "timestamp": "2018/06/25 17:54:20.0541",
+  "data": [
+    {
+      "name": "speed",
+      "integerValue": "0",
+      "readableString": "0",
+      "rawValue": "0"
+    },
+    {
+      "name": "distanceFront",
+      "integerValue": "65535",
+      "readableString": "65535",
+      "rawValue": "ffff"
+    },
+    {
+      "name": "lkaFlag",
+      "integerValue": "1",
+      "readableString": "ON",
+      "rawValue": "1"
+    }
+  ]
+}
+```
+
+### POSTリクエストの例
+
+
+```javascript
+$ curl -X POST -H 'Content-Type:application/json' -d '{"accel":"90","steer":"120"}' http://192.168.100.201:8089/api/car/actuator | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    52  100    24  100    28   1090   1272 --:--:-- --:--:-- --:--:--  2476
+{
+  "accel": 90,
+  "steer": 120
+}
+```
 
 ## トラブルシューティング
 ### 制御情報が上手く伝わっているのかわからない
